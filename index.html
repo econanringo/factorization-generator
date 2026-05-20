@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>因数分解 問題演習</title>
+  <title>因数分解・展開 問題演習</title>
   <link
     rel="stylesheet"
     href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css"
@@ -128,11 +128,12 @@
 </head>
 <body>
   <main class="app">
-    <h1>因数分解 問題演習</h1>
-    <p class="desc">ランダム問題を解いて、数式プレビューで確認してから答え合わせできます。</p>
+    <h1>因数分解・展開 問題演習</h1>
+    <p class="desc">因数分解・展開・工夫して解く問題をランダムで演習できます。</p>
 
     <section class="panel">
       <strong>問題</strong>
+      <div id="questionType" class="desc" role="status" aria-live="polite" aria-atomic="true">問題タイプ</div>
       <div id="questionLatex" class="equation"></div>
       <div class="controls">
         <button id="nextProblemBtn" type="button">次の問題を生成</button>
@@ -140,7 +141,7 @@
     </section>
 
     <section class="panel">
-      <label for="answerInput">解答入力（例: (x+2)(x+3), (x+2)^2）</label>
+      <label for="answerInput">解答入力（例: (x+2)(x+3), x^2+5x+6）</label>
       <input id="answerInput" type="text" autocomplete="off" />
       <div class="controls" id="softKeyboard">
         <button type="button" class="kbd" data-insert="x">x</button>
@@ -167,12 +168,13 @@
 
   <script>
     const questionLatex = document.getElementById("questionLatex");
+    const questionType = document.getElementById("questionType");
     const answerInput = document.getElementById("answerInput");
     const previewLatex = document.getElementById("previewLatex");
     const feedback = document.getElementById("feedback");
     const correctLatex = document.getElementById("correctLatex");
-    const MAX_POLYNOMIAL_DEGREE = 2;
-    const MAX_POLY_LENGTH = MAX_POLYNOMIAL_DEGREE + 1; // 0次〜2次の係数 [c0, c1, c2]
+    const MAX_POLYNOMIAL_DEGREE = 4;
+    const MAX_POLY_LENGTH = MAX_POLYNOMIAL_DEGREE + 1; // 0次〜4次の係数 [c0, c1, c2, c3, c4]
     const MAX_SAFE_EXPONENT = 8; // 高すぎるべき乗入力を早期拒否して処理負荷を抑える
     const EPSILON = 1e-9;
 
@@ -188,39 +190,66 @@
     const numToLatex = (n) => (n < 0 ? `(${n})` : `${n}`);
     const signed = (n) => (n >= 0 ? `+${n}` : `${n}`);
 
-    // 4種類のパターンをランダム生成し、表示式と正解式（LaTeX）を保持する
-    function generateProblem() {
-      const type = randInt(1, 4);
+    function polyToLatex(poly) {
+      const t = polyTrim(poly);
+      if (!t.length) return "0";
+      let out = "";
+      for (let degree = t.length - 1; degree >= 0; degree--) {
+        const coef = t[degree] || 0;
+        if (Math.abs(coef) < EPSILON) continue;
+        const absCoef = Math.abs(coef);
+        let term = "";
+        if (degree === 0) {
+          term = `${absCoef}`;
+        } else if (degree === 1) {
+          term = `${absCoef === 1 ? "" : absCoef}x`;
+        } else {
+          term = `${absCoef === 1 ? "" : absCoef}x^${degree}`;
+        }
+        if (!out) {
+          out = coef < 0 ? `-${term}` : term;
+        } else {
+          out += coef < 0 ? `-${term}` : `+${term}`;
+        }
+      }
+      return out || "0";
+    }
 
-      if (type === 1) {
+    const buildProblemFactories = () => [
+      () => {
         const a = pickNonZero(-8, 8);
         const b = pickNonZero(-8, 8);
         const B = a + b;
         const C = a * b;
-        state.current = {
-          type,
-          A: 1, B, C,
+        return {
+          prompt: "因数分解せよ",
           question: `x^2 ${signed(B)}x ${signed(C)}`,
+          targetPoly: [C, B, 1],
           answerLatex: `(x${signed(a)})(x${signed(b)})`
         };
-      } else if (type === 2) {
+      },
+      () => {
         const a = pickNonZero(-9, 9);
-        state.current = {
-          type,
-          A: 1, B: 2 * a, C: a * a,
-          question: `x^2 ${signed(2 * a)}x ${signed(a * a)}`,
+        const B = 2 * a;
+        const C = a * a;
+        return {
+          prompt: "因数分解せよ",
+          question: `x^2 ${signed(B)}x ${signed(C)}`,
+          targetPoly: [C, B, 1],
           answerLatex: `(x${signed(a)})^2`
         };
-      } else if (type === 3) {
+      },
+      () => {
         const a = pickNonZero(1, 12);
-        state.current = {
-          type,
-          A: 1, B: 0, C: -(a * a),
-          question: `x^2 ${signed(-(a * a))}`,
+        const C = -(a * a);
+        return {
+          prompt: "因数分解せよ",
+          question: `x^2 ${signed(C)}`,
+          targetPoly: [C, 0, 1],
           answerLatex: `(x+${a})(x-${a})`
         };
-      } else {
-        // たすき掛けを意識した ax^2+bx+c を、整数因数 (px+q)(rx+s) から生成（p, rは正）
+      },
+      () => {
         const p = pickNonZero(1, 5);
         const r = pickNonZero(1, 5);
         const q = pickNonZero(-8, 8);
@@ -228,14 +257,68 @@
         const A = p * r;
         const B = p * s + q * r;
         const C = q * s;
-        state.current = {
-          type,
-          A, B, C,
+        return {
+          prompt: "因数分解せよ（たすき掛けを意識）",
           question: `${A === 1 ? "" : numToLatex(A)}x^2 ${signed(B)}x ${signed(C)}`,
+          targetPoly: [C, B, A],
           answerLatex: `(${p === 1 ? "" : numToLatex(p)}x${signed(q)})(${r === 1 ? "" : numToLatex(r)}x${signed(s)})`
         };
+      },
+      () => {
+        const a = pickNonZero(-8, 8);
+        const b = pickNonZero(-8, 8);
+        const B = a + b;
+        const C = a * b;
+        return {
+          prompt: "展開せよ",
+          question: `(x${signed(a)})(x${signed(b)})`,
+          targetPoly: [C, B, 1],
+          answerLatex: `x^2 ${signed(B)}x ${signed(C)}`
+        };
+      },
+      () => {
+        const a = pickNonZero(-8, 8);
+        return {
+          prompt: "展開せよ",
+          question: `(x${signed(a)})^2`,
+          targetPoly: [a * a, 2 * a, 1],
+          answerLatex: `x^2 ${signed(2 * a)}x ${signed(a * a)}`
+        };
+      },
+      () => {
+        const a = pickNonZero(-8, 8);
+        const b = pickNonZero(-8, 8);
+        const constTerm = a * b;
+        // x^4 + (x2Coefficient)x^2 + constTerm の形
+        const x2Coefficient = a + b;
+        const poly = [constTerm, 0, x2Coefficient, 0, 1];
+        return {
+          prompt: "工夫して因数分解せよ（x^2 を1つの文字とみる）",
+          question: polyToLatex(poly),
+          targetPoly: poly,
+          answerLatex: `(x^2${signed(a)})(x^2${signed(b)})`
+        };
+      },
+      () => {
+        const a = pickNonZero(-8, 8);
+        const b = pickNonZero(-8, 8);
+        // 係数配列は [定数項, x^1, x^2, x^3]（= x^3 + (a+b)x^2 + (ab)x + 0）
+        const poly = [0, a * b, a + b, 1];
+        return {
+          prompt: "工夫して因数分解せよ（共通因数に注目）",
+          question: polyToLatex(poly),
+          targetPoly: poly,
+          answerLatex: `x(x${signed(a)})(x${signed(b)})`
+        };
       }
+    ];
 
+    function generateProblem() {
+      const factories = buildProblemFactories();
+      const make = factories[randInt(0, factories.length - 1)];
+      state.current = make();
+
+      questionType.textContent = state.current.prompt;
       renderLatex(questionLatex, state.current.question);
       feedback.textContent = "";
       feedback.className = "feedback";
@@ -392,14 +475,12 @@
       if (!state.current) return false;
       const poly = parsePolynomial(input);
       if (!poly || poly.length > MAX_POLY_LENGTH) return false;
-      const c0 = poly[0] || 0;
-      const c1 = poly[1] || 0;
-      const c2 = poly[2] || 0;
-      return (
-        Math.abs(c2 - state.current.A) < EPSILON &&
-        Math.abs(c1 - state.current.B) < EPSILON &&
-        Math.abs(c0 - state.current.C) < EPSILON
-      );
+      const target = state.current.targetPoly || [];
+      const len = Math.max(poly.length, target.length);
+      for (let i = 0; i < len; i++) {
+        if (Math.abs((poly[i] || 0) - (target[i] || 0)) >= EPSILON) return false;
+      }
+      return true;
     }
 
     function updatePreview() {
