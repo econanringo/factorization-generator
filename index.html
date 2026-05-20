@@ -302,7 +302,7 @@
     function parsePolynomial(input) {
       const expr = normalizeInput(input);
       if (!expr) return null;
-      const tokens = expr.match(/\d+|x|[()+\-*/^]/g);
+      const tokens = expr.match(/\d+|x|[()+\-*\/^]/g);
       if (!tokens || tokens.join("") !== expr) return null;
       let i = 0;
 
