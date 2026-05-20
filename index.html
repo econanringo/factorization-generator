@@ -351,7 +351,10 @@
       function parseUnary() {
         let sign = 1;
         // 連続する単項 +/-（例: --x, +-x）をまとめて符号化
-        while (peek() === "+" || peek() === "-") sign *= consume() === "-" ? -1 : 1;
+        while (peek() === "+" || peek() === "-") {
+          const unary = consume();
+          if (unary === "-") sign *= -1;
+        }
         const primary = parsePrimary();
         if (!primary) return null;
         if (sign === 1) return primary;
