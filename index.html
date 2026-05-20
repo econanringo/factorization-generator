@@ -174,7 +174,7 @@
     const feedback = document.getElementById("feedback");
     const correctLatex = document.getElementById("correctLatex");
     const MAX_POLYNOMIAL_DEGREE = 4;
-    const MAX_POLY_LENGTH = MAX_POLYNOMIAL_DEGREE + 1; // 0次～4次の係数 [c0, c1, c2, c3, c4]
+    const MAX_POLY_LENGTH = MAX_POLYNOMIAL_DEGREE + 1; // 0次〜4次の係数 [c0, c1, c2, c3, c4]
     const MAX_SAFE_EXPONENT = 8; // 高すぎるべき乗入力を早期拒否して処理負荷を抑える
     const EPSILON = 1e-9;
 
@@ -289,8 +289,8 @@
         const a = pickNonZero(-8, 8);
         const b = pickNonZero(-8, 8);
         const constTerm = a * b;
-        const coefficientOfX2 = a + b;
-        const poly = [constTerm, 0, coefficientOfX2, 0, 1];
+        const x2Coefficient = a + b;
+        const poly = [constTerm, 0, x2Coefficient, 0, 1];
         return {
           prompt: "工夫して因数分解せよ（x^2 を1つの文字とみる）",
           question: polyToLatex(poly),
