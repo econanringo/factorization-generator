@@ -1,0 +1,441 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>因数分解 問題演習</title>
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css"
+  />
+  <script
+    defer
+    src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"
+  ></script>
+  <style>
+    :root {
+      --bg: #f7f9fc;
+      --card: #ffffff;
+      --text: #1f2937;
+      --sub: #6b7280;
+      --primary: #2563eb;
+      --primary-dark: #1d4ed8;
+      --ok: #047857;
+      --ng: #b91c1c;
+      --line: #e5e7eb;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Noto Sans JP", "Hiragino Sans", "Yu Gothic UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 16px;
+    }
+
+    .app {
+      width: 100%;
+      max-width: 760px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+      padding: 20px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: clamp(1.2rem, 2vw, 1.6rem);
+    }
+
+    .desc { color: var(--sub); margin: 0 0 16px; }
+
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 14px;
+      margin-bottom: 14px;
+      background: #fcfdff;
+    }
+
+    .equation {
+      min-height: 38px;
+      font-size: 1.1rem;
+      overflow-x: auto;
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-weight: 700;
+      cursor: pointer;
+      background: var(--primary);
+      color: #fff;
+      transition: background .2s ease;
+    }
+
+    button:hover { background: var(--primary-dark); }
+
+    .kbd {
+      background: #eef2ff;
+      color: #1e3a8a;
+      font-weight: 600;
+      min-width: 44px;
+      padding: 10px;
+    }
+
+    label {
+      display: block;
+      margin: 10px 0 6px;
+      font-weight: 700;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 1rem;
+    }
+
+    .preview, .feedback, .answer {
+      min-height: 30px;
+      margin-top: 8px;
+      overflow-x: auto;
+    }
+
+    .feedback.ok { color: var(--ok); font-weight: 700; }
+    .feedback.ng { color: var(--ng); font-weight: 700; }
+
+    @media (max-width: 560px) {
+      .app { padding: 14px; }
+      button { flex: 1 1 auto; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <h1>因数分解 問題演習</h1>
+    <p class="desc">ランダム問題を解いて、数式プレビューで確認してから答え合わせできます。</p>
+
+    <section class="panel">
+      <strong>問題</strong>
+      <div id="questionLatex" class="equation"></div>
+      <div class="controls">
+        <button id="nextProblemBtn" type="button">次の問題を生成</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <label for="answerInput">解答入力（例: (x+2)(x+3), (x+2)^2）</label>
+      <input id="answerInput" type="text" autocomplete="off" />
+      <div class="controls" id="softKeyboard">
+        <button type="button" class="kbd" data-insert="x">x</button>
+        <button type="button" class="kbd" data-insert="y">y</button>
+        <button type="button" class="kbd" data-insert="+">+</button>
+        <button type="button" class="kbd" data-insert="-">-</button>
+        <button type="button" class="kbd" data-insert="(">(</button>
+        <button type="button" class="kbd" data-insert=")">)</button>
+        <button type="button" class="kbd" data-insert="^2">^2</button>
+      </div>
+
+      <div class="controls">
+        <button id="previewBtn" type="button">プレビュー</button>
+        <button id="checkBtn" type="button">答え合わせ</button>
+      </div>
+
+      <strong>入力プレビュー</strong>
+      <div id="previewLatex" class="preview"></div>
+      <div id="feedback" class="feedback"></div>
+      <strong>正しい解答</strong>
+      <div id="correctLatex" class="answer"></div>
+    </section>
+  </main>
+
+  <script>
+    const questionLatex = document.getElementById("questionLatex");
+    const answerInput = document.getElementById("answerInput");
+    const previewLatex = document.getElementById("previewLatex");
+    const feedback = document.getElementById("feedback");
+    const correctLatex = document.getElementById("correctLatex");
+    const MAX_POLYNOMIAL_DEGREE = 2;
+    const MAX_POLY_LENGTH = MAX_POLYNOMIAL_DEGREE + 1; // 0次〜2次の係数 [c0, c1, c2]
+    const MAX_SAFE_EXPONENT = 8; // 高すぎるべき乗入力を早期拒否して処理負荷を抑える
+    const EPSILON = 1e-9;
+
+    const state = { current: null };
+
+    const randInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+    const pickNonZero = (min, max) => {
+      let n = 0;
+      while (n === 0) n = randInt(min, max);
+      return n;
+    };
+
+    const numToLatex = (n) => (n < 0 ? `(${n})` : `${n}`);
+    const signed = (n) => (n >= 0 ? `+${n}` : `${n}`);
+
+    // 4種類のパターンをランダム生成し、表示式と正解式（LaTeX）を保持する
+    function generateProblem() {
+      const type = randInt(1, 4);
+
+      if (type === 1) {
+        const a = pickNonZero(-8, 8);
+        const b = pickNonZero(-8, 8);
+        const B = a + b;
+        const C = a * b;
+        state.current = {
+          type,
+          A: 1, B, C,
+          question: `x^2 ${signed(B)}x ${signed(C)}`,
+          answerLatex: `(x${signed(a)})(x${signed(b)})`
+        };
+      } else if (type === 2) {
+        const a = pickNonZero(-9, 9);
+        state.current = {
+          type,
+          A: 1, B: 2 * a, C: a * a,
+          question: `x^2 ${signed(2 * a)}x ${signed(a * a)}`,
+          answerLatex: `(x${signed(a)})^2`
+        };
+      } else if (type === 3) {
+        const a = pickNonZero(1, 12);
+        state.current = {
+          type,
+          A: 1, B: 0, C: -(a * a),
+          question: `x^2 ${signed(-(a * a))}`,
+          answerLatex: `(x+${a})(x-${a})`
+        };
+      } else {
+        // たすき掛けを意識した ax^2+bx+c を、整数因数 (px+q)(rx+s) から生成（p, rは正）
+        const p = pickNonZero(1, 5);
+        const r = pickNonZero(1, 5);
+        const q = pickNonZero(-8, 8);
+        const s = pickNonZero(-8, 8);
+        const A = p * r;
+        const B = p * s + q * r;
+        const C = q * s;
+        state.current = {
+          type,
+          A, B, C,
+          question: `${A === 1 ? "" : numToLatex(A)}x^2 ${signed(B)}x ${signed(C)}`,
+          answerLatex: `(${p === 1 ? "" : numToLatex(p)}x${signed(q)})(${r === 1 ? "" : numToLatex(r)}x${signed(s)})`
+        };
+      }
+
+      renderLatex(questionLatex, state.current.question);
+      feedback.textContent = "";
+      feedback.className = "feedback";
+      correctLatex.textContent = "";
+      answerInput.value = "";
+      previewLatex.textContent = "";
+      answerInput.focus();
+    }
+
+    function renderLatex(el, latexText) {
+      if (!window.katex) {
+        el.textContent = latexText;
+        return;
+      }
+      try {
+        window.katex.render(latexText, el, { throwOnError: false });
+      } catch {
+        el.textContent = latexText;
+      }
+    }
+
+    // 判定ロジック:
+    // ユーザー入力を多項式として安全にパースし、A*x^2+B*x+C の係数一致で判定する
+    // 係数比較なので、同値な式（因数の順序違いを含む）は自然に同じ判定になる
+    function normalizeInput(input) {
+      let expr = (input || "").trim().replaceAll("²", "^2");
+      if (!expr) return "";
+      if (!/^[0-9xXyY+\-*^()\s]+$/.test(expr)) return "";
+      expr = expr.toLowerCase().replaceAll("y", "x").replace(/\s+/g, "");
+      return expr;
+    }
+
+    function polyTrim(poly) {
+      const out = poly.slice();
+      while (out.length > 0 && Math.abs(out[out.length - 1]) < EPSILON) out.pop();
+      return out;
+    }
+
+    const polyAdd = (a, b) => {
+      const len = Math.max(a.length, b.length);
+      const out = new Array(len).fill(0);
+      for (let i = 0; i < len; i++) out[i] = (a[i] || 0) + (b[i] || 0);
+      return polyTrim(out);
+    };
+    const polySub = (a, b) => {
+      const len = Math.max(a.length, b.length);
+      const out = new Array(len).fill(0);
+      for (let i = 0; i < len; i++) out[i] = (a[i] || 0) - (b[i] || 0);
+      return polyTrim(out);
+    };
+    const polyMul = (a, b) => {
+      if (!a.length || !b.length) return [];
+      const out = new Array(a.length + b.length - 1).fill(0);
+      for (let i = 0; i < a.length; i++) {
+        for (let j = 0; j < b.length; j++) out[i + j] += a[i] * b[j];
+      }
+      return polyTrim(out);
+    };
+    const polyPow = (base, exp) => {
+      if (!Number.isInteger(exp) || exp < 0 || exp > MAX_SAFE_EXPONENT) return null;
+      let out = [1];
+      for (let i = 0; i < exp; i++) out = polyMul(out, base);
+      return out;
+    };
+
+    function parsePolynomial(input) {
+      const expr = normalizeInput(input);
+      if (!expr) return null;
+      const tokens = expr.match(/\d+|x|[()+\-*^]/g);
+      if (!tokens || tokens.join("") !== expr) return null;
+      let i = 0;
+
+      const peek = () => tokens[i];
+      const consume = () => tokens[i++];
+      const startsFactor = (t) => t === "x" || t === "(" || /^\d+$/.test(t || "");
+
+      function parseExpression() {
+        let left = parseTerm();
+        while (peek() === "+" || peek() === "-") {
+          const op = consume();
+          const right = parseTerm();
+          if (!right) return null;
+          left = op === "+" ? polyAdd(left, right) : polySub(left, right);
+        }
+        return left;
+      }
+
+      function parseTerm() {
+        let left = parsePower();
+        if (!left) return null;
+        while (peek() === "*" || startsFactor(peek())) {
+          if (peek() === "*") consume();
+          const right = parsePower();
+          if (!right) return null;
+          left = polyMul(left, right);
+          if (left.length > MAX_POLY_LENGTH) return null;
+        }
+        return left;
+      }
+
+      function parsePower() {
+        let left = parseUnary();
+        if (!left) return null;
+        while (peek() === "^") {
+          consume();
+          const expTok = consume();
+          if (!/^\d+$/.test(expTok || "")) return null;
+          const exp = Number(expTok);
+          left = polyPow(left, exp);
+          if (!left || left.length > MAX_POLY_LENGTH) return null;
+        }
+        return left;
+      }
+
+      function parseUnary() {
+        let sign = 1;
+        // 連続する単項演算子 +/-（例: --x, +-x）をまとめて符号化
+        while (peek() === "+" || peek() === "-") {
+          const unary = consume();
+          if (unary === "-") sign *= -1;
+        }
+        const primary = parsePrimary();
+        if (!primary) return null;
+        if (sign === 1) return primary;
+        return primary.map((v) => -v);
+      }
+
+      function parsePrimary() {
+        const t = peek();
+        if (t === "x") {
+          consume();
+          return [0, 1];
+        }
+        if (/^\d+$/.test(t || "")) {
+          consume();
+          return [Number(t)];
+        }
+        if (t === "(") {
+          consume();
+          const inside = parseExpression();
+          if (!inside || peek() !== ")") return null;
+          consume();
+          return inside;
+        }
+        return null;
+      }
+
+      const poly = parseExpression();
+      if (!poly || i !== tokens.length) return null;
+      return polyTrim(poly);
+    }
+
+    function isCorrectAnswer(input) {
+      if (!state.current) return false;
+      const poly = parsePolynomial(input);
+      if (!poly || poly.length > MAX_POLY_LENGTH) return false;
+      const c0 = poly[0] || 0;
+      const c1 = poly[1] || 0;
+      const c2 = poly[2] || 0;
+      return (
+        Math.abs(c2 - state.current.A) < EPSILON &&
+        Math.abs(c1 - state.current.B) < EPSILON &&
+        Math.abs(c0 - state.current.C) < EPSILON
+      );
+    }
+
+    function updatePreview() {
+      const txt = answerInput.value.trim();
+      if (!txt) {
+        previewLatex.textContent = "";
+        return;
+      }
+      renderLatex(previewLatex, txt.replaceAll("²", "^2"));
+    }
+
+    document.getElementById("nextProblemBtn").addEventListener("click", generateProblem);
+    document.getElementById("previewBtn").addEventListener("click", updatePreview);
+    document.getElementById("checkBtn").addEventListener("click", () => {
+      const ok = isCorrectAnswer(answerInput.value);
+      feedback.textContent = ok ? "正解！🎉" : "残念！不正解です";
+      feedback.className = ok ? "feedback ok" : "feedback ng";
+      renderLatex(correctLatex, state.current.answerLatex);
+    });
+
+    document.getElementById("softKeyboard").addEventListener("click", (e) => {
+      const btn = e.target.closest("button[data-insert]");
+      if (!btn) return;
+      const insert = btn.dataset.insert || "";
+      const start = answerInput.selectionStart ?? answerInput.value.length;
+      const end = answerInput.selectionEnd ?? answerInput.value.length;
+      const oldVal = answerInput.value;
+      answerInput.value = oldVal.slice(0, start) + insert + oldVal.slice(end);
+      const caret = start + insert.length;
+      answerInput.focus();
+      answerInput.setSelectionRange(caret, caret);
+      updatePreview();
+    });
+
+    answerInput.addEventListener("input", updatePreview);
+    generateProblem();
+  </script>
+</body>
+</html>
