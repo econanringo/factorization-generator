@@ -261,7 +261,7 @@
     function normalizeInput(input) {
       let expr = (input || "").trim().replaceAll("²", "^2");
       if (!expr) return "";
-      if (!/^[0-9xXyY+\-*/^()\s]+$/.test(expr)) return "";
+      if (!/^[0-9xXyY+\-*^()\s]+$/.test(expr)) return "";
       expr = expr.toLowerCase().replaceAll("y", "x").replace(/\s+/g, "");
       return expr;
     }
@@ -302,7 +302,7 @@
     function parsePolynomial(input) {
       const expr = normalizeInput(input);
       if (!expr) return null;
-      const tokens = expr.match(/\d+|x|[()+\-*\/^]/g);
+      const tokens = expr.match(/\d+|x|[()+\-*^]/g);
       if (!tokens || tokens.join("") !== expr) return null;
       let i = 0;
 
@@ -350,6 +350,7 @@
 
       function parseUnary() {
         let sign = 1;
+        // 連続する単項 +/-（例: --x, +-x）をまとめて符号化
         while (peek() === "+" || peek() === "-") sign *= consume() === "-" ? -1 : 1;
         const primary = parsePrimary();
         if (!primary) return null;
