@@ -133,7 +133,7 @@
 
     <section class="panel">
       <strong>問題</strong>
-      <div id="questionType" class="desc"></div>
+      <div id="questionType" class="desc" role="status" aria-live="polite"></div>
       <div id="questionLatex" class="equation"></div>
       <div class="controls">
         <button id="nextProblemBtn" type="button">次の問題を生成</button>
@@ -288,9 +288,9 @@
       () => {
         const a = pickNonZero(-8, 8);
         const b = pickNonZero(-8, 8);
-        const c0 = a * b;
-        const c2 = a + b;
-        const poly = [c0, 0, c2, 0, 1];
+        const constTerm = a * b;
+        const x2Coef = a + b;
+        const poly = [constTerm, 0, x2Coef, 0, 1];
         return {
           prompt: "工夫して因数分解せよ（x^2 を1つの文字とみる）",
           question: polyToLatex(poly),
