@@ -172,8 +172,8 @@
     const feedback = document.getElementById("feedback");
     const correctLatex = document.getElementById("correctLatex");
     const MAX_POLYNOMIAL_DEGREE = 2;
-    const MAX_POLY_LENGTH = MAX_POLYNOMIAL_DEGREE + 1; // [c0, c1, c2] の3要素まで
-    const MAX_SAFE_EXPONENT = 8; // 入力の暴走防止のための上限（高すぎるべき乗を拒否）
+    const MAX_POLY_LENGTH = MAX_POLYNOMIAL_DEGREE + 1; // 0次〜2次の係数 [c0, c1, c2]
+    const MAX_SAFE_EXPONENT = 8; // 高すぎるべき乗入力を早期拒否して処理負荷を抑える
     const EPSILON = 1e-9;
 
     const state = { current: null };
@@ -352,7 +352,7 @@
 
       function parseUnary() {
         let sign = 1;
-        // 連続する単項 +/-（例: --x, +-x）をまとめて符号化
+        // 連続する単項演算子 +/-（例: --x, +-x）をまとめて符号化
         while (peek() === "+" || peek() === "-") {
           const unary = consume();
           if (unary === "-") sign *= -1;
