@@ -133,7 +133,7 @@
 
     <section class="panel">
       <strong>問題</strong>
-      <div id="questionType" class="desc" role="status" aria-live="polite"></div>
+      <div id="questionType" class="desc" role="status" aria-live="polite" aria-atomic="true"></div>
       <div id="questionLatex" class="equation"></div>
       <div class="controls">
         <button id="nextProblemBtn" type="button">次の問題を生成</button>
@@ -174,7 +174,7 @@
     const feedback = document.getElementById("feedback");
     const correctLatex = document.getElementById("correctLatex");
     const MAX_POLYNOMIAL_DEGREE = 4;
-    const MAX_POLY_LENGTH = MAX_POLYNOMIAL_DEGREE + 1; // 0次〜4次の係数 [c0, c1, c2, c3, c4]
+    const MAX_POLY_LENGTH = MAX_POLYNOMIAL_DEGREE + 1; // 0次～4次の係数 [c0, c1, c2, c3, c4]
     const MAX_SAFE_EXPONENT = 8; // 高すぎるべき乗入力を早期拒否して処理負荷を抑える
     const EPSILON = 1e-9;
 
@@ -289,8 +289,8 @@
         const a = pickNonZero(-8, 8);
         const b = pickNonZero(-8, 8);
         const constTerm = a * b;
-        const x2Coef = a + b;
-        const poly = [constTerm, 0, x2Coef, 0, 1];
+        const coefficientOfX2 = a + b;
+        const poly = [constTerm, 0, coefficientOfX2, 0, 1];
         return {
           prompt: "工夫して因数分解せよ（x^2 を1つの文字とみる）",
           question: polyToLatex(poly),
@@ -301,6 +301,7 @@
       () => {
         const a = pickNonZero(-8, 8);
         const b = pickNonZero(-8, 8);
+        // 係数配列は [定数項, x^1, x^2, x^3] の順
         const poly = [0, a * b, a + b, 1];
         return {
           prompt: "工夫して因数分解せよ（共通因数に注目）",
