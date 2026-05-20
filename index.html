@@ -171,6 +171,8 @@
     const previewLatex = document.getElementById("previewLatex");
     const feedback = document.getElementById("feedback");
     const correctLatex = document.getElementById("correctLatex");
+    const MAX_POLY_LENGTH = 3; // [c0, c1, c2] の3要素まで（2次式まで）
+    const MAX_EXPONENT = 8; // 入力の暴走防止のための上限（高すぎるべき乗を拒否）
 
     const state = { current: null };
 
@@ -216,7 +218,7 @@
           answerLatex: `(x+${a})(x-${a})`
         };
       } else {
-        // たすき掛けを意識した ax^2+bx+c を、整数因数 (px+q)(rx+s) から生成（p,rは正）
+        // たすき掛けを意識した ax^2+bx+c を、整数因数 (px+q)(rx+s) から生成（p, rは正）
         const p = pickNonZero(1, 5);
         const r = pickNonZero(1, 5);
         const q = pickNonZero(-8, 8);
@@ -255,7 +257,7 @@
 
     // 判定ロジック:
     // ユーザー入力を多項式として安全にパースし、A*x^2+B*x+C の係数一致で判定する
-    // 項の順序違い ((x+2)(x+3) と (x+3)(x+2)) も同値なら正解扱い
+    // 係数比較なので、同値な式（因数の順序違いを含む）は自然に同じ判定になる
     function normalizeInput(input) {
       let expr = (input || "").trim().replaceAll("²", "^2");
       if (!expr) return "";
@@ -291,7 +293,7 @@
       return polyTrim(out);
     };
     const polyPow = (base, exp) => {
-      if (!Number.isInteger(exp) || exp < 0 || exp > 8) return null;
+      if (!Number.isInteger(exp) || exp < 0 || exp > MAX_EXPONENT) return null;
       let out = [1];
       for (let i = 0; i < exp; i++) out = polyMul(out, base);
       return out;
@@ -327,7 +329,7 @@
           const right = parsePower();
           if (!right) return null;
           left = polyMul(left, right);
-          if (left.length > 3) return null;
+          if (left.length > MAX_POLY_LENGTH) return null;
         }
         return left;
       }
@@ -341,7 +343,7 @@
           if (!/^\d+$/.test(expTok || "")) return null;
           const exp = Number(expTok);
           left = polyPow(left, exp);
-          if (!left || left.length > 3) return null;
+          if (!left || left.length > MAX_POLY_LENGTH) return null;
         }
         return left;
       }
@@ -383,7 +385,7 @@
     function isCorrectAnswer(input) {
       if (!state.current) return false;
       const poly = parsePolynomial(input);
-      if (!poly || poly.length > 3) return false;
+      if (!poly || poly.length > MAX_POLY_LENGTH) return false;
       const c0 = poly[0] || 0;
       const c1 = poly[1] || 0;
       const c2 = poly[2] || 0;
