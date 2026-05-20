@@ -171,8 +171,10 @@
     const previewLatex = document.getElementById("previewLatex");
     const feedback = document.getElementById("feedback");
     const correctLatex = document.getElementById("correctLatex");
-    const MAX_POLY_LENGTH = 3; // [c0, c1, c2] の3要素まで（2次式まで）
-    const MAX_EXPONENT = 8; // 入力の暴走防止のための上限（高すぎるべき乗を拒否）
+    const MAX_POLYNOMIAL_DEGREE = 2;
+    const MAX_POLY_LENGTH = MAX_POLYNOMIAL_DEGREE + 1; // [c0, c1, c2] の3要素まで
+    const MAX_SAFE_EXPONENT = 8; // 入力の暴走防止のための上限（高すぎるべき乗を拒否）
+    const EPSILON = 1e-9;
 
     const state = { current: null };
 
@@ -268,7 +270,7 @@
 
     function polyTrim(poly) {
       const out = poly.slice();
-      while (out.length > 0 && Math.abs(out[out.length - 1]) < 1e-9) out.pop();
+      while (out.length > 0 && Math.abs(out[out.length - 1]) < EPSILON) out.pop();
       return out;
     }
 
@@ -293,7 +295,7 @@
       return polyTrim(out);
     };
     const polyPow = (base, exp) => {
-      if (!Number.isInteger(exp) || exp < 0 || exp > MAX_EXPONENT) return null;
+      if (!Number.isInteger(exp) || exp < 0 || exp > MAX_SAFE_EXPONENT) return null;
       let out = [1];
       for (let i = 0; i < exp; i++) out = polyMul(out, base);
       return out;
@@ -394,9 +396,9 @@
       const c1 = poly[1] || 0;
       const c2 = poly[2] || 0;
       return (
-        Math.abs(c2 - state.current.A) < 1e-9 &&
-        Math.abs(c1 - state.current.B) < 1e-9 &&
-        Math.abs(c0 - state.current.C) < 1e-9
+        Math.abs(c2 - state.current.A) < EPSILON &&
+        Math.abs(c1 - state.current.B) < EPSILON &&
+        Math.abs(c0 - state.current.C) < EPSILON
       );
     }
 
