@@ -133,7 +133,7 @@
 
     <section class="panel">
       <strong>問題</strong>
-      <div id="questionType" class="desc" role="status" aria-live="polite" aria-atomic="true"></div>
+      <div id="questionType" class="desc" role="status" aria-live="polite" aria-atomic="true">問題タイプ</div>
       <div id="questionLatex" class="equation"></div>
       <div class="controls">
         <button id="nextProblemBtn" type="button">次の問題を生成</button>
@@ -289,6 +289,7 @@
         const a = pickNonZero(-8, 8);
         const b = pickNonZero(-8, 8);
         const constTerm = a * b;
+        // x^4 + (x2Coefficient)x^2 + constTerm の形
         const x2Coefficient = a + b;
         const poly = [constTerm, 0, x2Coefficient, 0, 1];
         return {
@@ -301,7 +302,7 @@
       () => {
         const a = pickNonZero(-8, 8);
         const b = pickNonZero(-8, 8);
-        // 係数配列は [定数項, x^1, x^2, x^3] の順
+        // 係数配列は [定数項, x^1, x^2, x^3]（= x^3 + (a+b)x^2 + (ab)x + 0）
         const poly = [0, a * b, a + b, 1];
         return {
           prompt: "工夫して因数分解せよ（共通因数に注目）",
